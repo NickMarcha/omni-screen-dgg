@@ -30,11 +30,78 @@
     return p + ':' + idNorm
   }
 
+  // --- Mentions API (polecat.me) ---
+  function fetchMentions(username, size, offset) {
+    var url = 'https://polecat.me/api/mentions/' + encodeURIComponent(username) + '?size=' + size + '&offset=' + offset
+    return fetch(url, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
+    }).then(function (res) {
+      if (!res.ok) return Promise.reject(new Error('HTTP ' + res.status))
+      return res.json()
+    }).then(function (data) {
+      return { success: true, data: Array.isArray(data) ? data : [] }
+    }).catch(function (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) }
+    })
+  }
+
+  // --- Rustlesearch API (rustlesearch.dev) ---
+  var RUSTLESEARCH_CHANNEL = 'Destinygg'
+  function fetchRustlesearch(filterTerms, searchAfter, size) {
+    size = size || 150
+    var terms = Array.isArray(filterTerms) ? filterTerms : []
+    var textParam = terms.map(function (t) { return String(t).trim() }).filter(Boolean).join('|')
+    var url = new URL('https://api-v2.rustlesearch.dev/anon/search')
+    url.searchParams.set('channel', RUSTLESEARCH_CHANNEL)
+    if (textParam) url.searchParams.set('text', textParam)
+    if (searchAfter != null) url.searchParams.set('search_after', String(searchAfter))
+    return fetch(url.toString(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
+    }).then(function (res) {
+      if (!res.ok) return Promise.reject(new Error('HTTP ' + res.status))
+      return res.json()
+    }).then(function (result) {
+      if (result.type !== 'Success' || !result.data) return { success: false, error: result.error || 'Invalid response' }
+      var messages = result.data.messages || []
+      var mappedData = messages.map(function (msg) {
+        var date = new Date(msg.ts).getTime()
+        return {
+          id: date + '-' + (msg.username || ''),
+          date: date,
+          text: msg.text || '',
+          nick: msg.username || '',
+          flairs: '',
+          matchedTerms: terms
+        }
+      })
+      var lastSearchAfter
+      if (messages.length > 0) {
+        var lastMsg = messages[messages.length - 1]
+        lastSearchAfter = lastMsg.searchAfter
+        if (lastSearchAfter == null) {
+          var sorted = mappedData.slice().sort(function (a, b) { return a.date - b.date })
+          lastSearchAfter = sorted.length ? sorted[sorted.length - 1].date : undefined
+        }
+      }
+      return {
+        success: true,
+        data: mappedData,
+        searchAfter: lastSearchAfter,
+        hasMore: messages.length > 0 && lastSearchAfter != null
+      }
+    }).catch(function (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) }
+    })
+  }
+
   function onLiveMessage(message, api) {
     var type = message && message.type
     var payload = message && message.data
     api.sendToRenderer('live-websocket-message', message)
     if (type === 'dggApi:embeds' && Array.isArray(payload)) {
+      api.sendToRenderer('live-websocket-embeds', payload)
       var keys = []
       var byKey = {}
       for (var i = 0; i < payload.length; i++) {
@@ -79,6 +146,7 @@
             flairsJsonUrl: DGG_CONFIG.flairsJsonUrl,
             flairsCssUrl: DGG_CONFIG.flairsCssUrl,
             platformIconUrl: DGG_CONFIG.baseUrl + '/favicon.ico',
+            mentionsChannelLabel: 'Destinygg',
           },
         },
         connectionPlatforms: [
@@ -94,6 +162,12 @@
             manualCookieNames: ['sid', 'rememberme'],
           },
         ],
+      })
+    }
+    if (typeof context.registerChatSourceApi === 'function') {
+      context.registerChatSourceApi('dgg', {
+        fetchMentions: fetchMentions,
+        fetchRustlesearch: fetchRustlesearch
       })
     }
     if (typeof context.registerSettings === 'function') {
