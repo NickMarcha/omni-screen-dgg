@@ -2,7 +2,7 @@
   "id": "dgg",
   "name": "Destiny.gg",
   "version": "1.0.0",
-  "updateUrl": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/main/manifest.json",
-  "entry": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/main/bundle.js",
+  "updateUrl": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/manifest.json",
+  "entry": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/bundle.js",
   "capabilities": ["chat", "embeds", "emotes", "flairs"]
 }
