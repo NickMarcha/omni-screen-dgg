@@ -7,7 +7,7 @@ This extension adds [Destiny.gg](https://www.destiny.gg) chat, live embeds, emot
 1. Make sure [Omni Screen](https://github.com/NickMarcha/omni-screen) is installed.
 2. Click the link below. Your system will open Omni Screen and install the extension.
 
-   **[Install in Omni Chat](omnichat://install?url=https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/manifest.json)**
+   [Install in Omni Chat](omnichat://install?url=https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/manifest.json)
 
 3. If prompted, allow Omni Screen to open. After install, you can reload extensions from the app menu (**Extensions → Reload extensions**) or restart the app.
 
