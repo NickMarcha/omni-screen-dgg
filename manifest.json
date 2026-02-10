@@ -4,5 +4,8 @@
   "version": "1.0.0",
   "updateUrl": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/manifest.json",
   "entry": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/bundle.js",
+  "description": "Chat source and live embed feed for Destiny.gg. Adds DGG to combined chat, Connections login, and live stream list.",
+  "tags": ["chat", "embeds", "emotes", "flairs"],
+  "icon": "https://raw.githubusercontent.com/NickMarcha/omni-screen-dgg/refs/heads/main/icon.png",
   "capabilities": ["chat", "embeds", "emotes", "flairs"]
 }
