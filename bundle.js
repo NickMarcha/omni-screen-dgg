@@ -23,6 +23,39 @@
     loginUrl: 'https://www.destiny.gg/login',
   }
 
+  function makeEmbedKey(platform, id) {
+    var p = String(platform || '').toLowerCase()
+    var rawId = String(id || '')
+    var idNorm = p === 'youtube' ? rawId : rawId.toLowerCase()
+    return p + ':' + idNorm
+  }
+
+  function onLiveMessage(message, api) {
+    var type = message && message.type
+    var payload = message && message.data
+    api.sendToRenderer('live-websocket-message', message)
+    if (type === 'dggApi:embeds' && Array.isArray(payload)) {
+      var keys = []
+      var byKey = {}
+      for (var i = 0; i < payload.length; i++) {
+        var embed = payload[i]
+        if (embed && embed.platform && embed.id) {
+          var key = makeEmbedKey(embed.platform, embed.id)
+          keys.push(key)
+          var displayName = embed.mediaItem && embed.mediaItem.metadata && embed.mediaItem.metadata.displayName
+          if (displayName) byKey[key] = { displayName: displayName }
+        }
+      }
+      api.setLiveEmbeds(keys, byKey)
+    }
+    if (type === 'dggApi:hosting') api.sendToRenderer('live-websocket-hosting', payload)
+    else if (type === 'dggApi:youtubeVods') api.sendToRenderer('live-websocket-youtube-vods', payload)
+    else if (type === 'dggApi:videos') api.sendToRenderer('live-websocket-videos', payload)
+    else if (type === 'dggApi:streamInfo') api.sendToRenderer('live-websocket-stream-info', payload)
+    else if (type === 'dggApi:events') api.sendToRenderer('live-websocket-events', payload)
+    else if (type === 'dggApi:bannedEmbeds') api.sendToRenderer('live-websocket-banned-embeds', payload)
+  }
+
   function register(context) {
     if (!context) return
     if (typeof context.registerChatSource === 'function') {
@@ -30,6 +63,7 @@
         getConfig: function () {
           return DGG_CONFIG
         },
+        onLiveMessage: onLiveMessage,
       })
     }
     if (typeof context.setRendererConfig === 'function') {
@@ -66,7 +100,6 @@
           placement: 'omni_screen',
           fields: [
             { key: 'includeInCombined', type: 'boolean', label: 'Include DGG', default: true },
-            { key: 'showInput', type: 'boolean', label: 'Show DGG chat input', default: true },
             { key: 'flairsAndColors', type: 'boolean', label: 'DGG flairs and colors', default: true, description: 'When off, DGG nicks use a single color and no flair icons.' },
             { key: 'labelColor', type: 'string', label: 'DGG label color', default: '', placeholder: '#ffffff', description: 'Badge color in combined chat. Clear = theme default.' },
             { key: 'labelText', type: 'string', label: 'DGG label text', default: 'dgg', placeholder: 'dgg', description: 'Text shown in the source badge for DGG messages.' },
