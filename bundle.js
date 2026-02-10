@@ -58,8 +58,10 @@
 
   function register(context) {
     if (!context) return
-    if (typeof context.registerChatSource === 'function') {
-      context.registerChatSource('dgg', {
+    var log = typeof context.log === 'function' ? context.log.bind(context) : function (level, msg) { console.log('[' + level + ']', msg) }
+    try {
+      if (typeof context.registerChatSource === 'function') {
+        context.registerChatSource('dgg', {
         getConfig: function () {
           return DGG_CONFIG
         },
@@ -68,14 +70,16 @@
     }
     if (typeof context.setRendererConfig === 'function') {
       context.setRendererConfig({
-        dgg: {
-          baseUrl: DGG_CONFIG.baseUrl,
-          loginUrl: DGG_CONFIG.loginUrl,
-          emotesJsonUrl: DGG_CONFIG.emotesJsonUrl,
-          emotesCssUrl: DGG_CONFIG.emotesCssUrl,
-          flairsJsonUrl: DGG_CONFIG.flairsJsonUrl,
-          flairsCssUrl: DGG_CONFIG.flairsCssUrl,
-          platformIconUrl: DGG_CONFIG.baseUrl + '/favicon.ico',
+        chatSources: {
+          dgg: {
+            baseUrl: DGG_CONFIG.baseUrl,
+            loginUrl: DGG_CONFIG.loginUrl,
+            emotesJsonUrl: DGG_CONFIG.emotesJsonUrl,
+            emotesCssUrl: DGG_CONFIG.emotesCssUrl,
+            flairsJsonUrl: DGG_CONFIG.flairsJsonUrl,
+            flairsCssUrl: DGG_CONFIG.flairsCssUrl,
+            platformIconUrl: DGG_CONFIG.baseUrl + '/favicon.ico',
+          },
         },
         connectionPlatforms: [
           {
@@ -106,6 +110,10 @@
           ],
         },
       ])
+    }
+      log('info', 'DGG chat source registered')
+    } catch (e) {
+      log('error', 'DGG extension failed to register: ' + (e && e.message ? e.message : String(e)), e)
     }
   }
 
