@@ -146,6 +146,8 @@
     }
     if (typeof context.setRendererConfig === 'function') {
       context.setRendererConfig({
+        menuTaglineTop: 'Vibed by StrawWaffle',
+        menuTaglineBottom: 'Thanks to polecat.me, Rustlesearch, and Kickstiny for (unwittingly) tolerating my abuse of their APIs and scripts.',
         chatSources: {
           dgg: {
             baseUrl: DGG_CONFIG.baseUrl,
