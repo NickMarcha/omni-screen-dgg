@@ -133,6 +133,15 @@
           return DGG_CONFIG
         },
         onLiveMessage: onLiveMessage,
+        getChatCommand: function (text) {
+          var t = String(text || '').trim()
+          if (t === '/die') return { cmd: 'DIE', payload: {} }
+          if (t.indexOf('/die ') === 0) {
+            var data = t.slice(5).trim()
+            return { cmd: 'DIE', payload: data ? { data: data } : {} }
+          }
+          return null
+        },
       })
     }
     if (typeof context.setRendererConfig === 'function') {
