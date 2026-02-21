@@ -158,6 +158,8 @@
             flairsCssUrl: DGG_CONFIG.flairsCssUrl,
             platformIconUrl: DGG_CONFIG.baseUrl + '/favicon.ico',
             mentionsChannelLabel: 'Destinygg',
+            pollsApiUrl: 'https://api.mitchdev.net/dgg/polls',
+            pollsInfoUrl: 'https://mitchdev.net/dgg/',
           },
         },
         connectionPlatforms: [
