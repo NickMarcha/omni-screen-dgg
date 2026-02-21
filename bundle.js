@@ -48,23 +48,50 @@
 
   // --- Rustlesearch API (rustlesearch.dev) ---
   var RUSTLESEARCH_CHANNEL = 'Destinygg'
-  function fetchRustlesearch(filterTerms, searchAfter, size) {
+  var rustleLog = function (level, msg, args) {
+    try { if (typeof console !== 'undefined' && console.log) console.log('[RustleSearch]', level, msg, args || []) } catch (e) {}
+  }
+  function fetchRustlesearch(filterTermsOrParams, searchAfter, size) {
     size = size || 150
-    var terms = Array.isArray(filterTerms) ? filterTerms : []
-    var textParam = terms.map(function (t) { return String(t).trim() }).filter(Boolean).join('|')
+    var isQueryMode = filterTermsOrParams && typeof filterTermsOrParams === 'object' && !Array.isArray(filterTermsOrParams)
+    var terms = isQueryMode ? [] : (Array.isArray(filterTermsOrParams) ? filterTermsOrParams : [])
     var url = new URL('https://api-v2.rustlesearch.dev/anon/search')
     url.searchParams.set('channel', RUSTLESEARCH_CHANNEL)
-    if (textParam) url.searchParams.set('text', textParam)
-    if (searchAfter != null) url.searchParams.set('search_after', String(searchAfter))
-    return fetch(url.toString(), {
+
+    if (isQueryMode) {
+      var p = filterTermsOrParams
+      if (p.username && String(p.username).trim()) url.searchParams.set('username', String(p.username).trim())
+      if (p.text && String(p.text).trim()) url.searchParams.set('text', String(p.text).trim())
+      var today = new Date().toISOString().slice(0, 10)
+      var defaultStart = '2017-01-01'
+      url.searchParams.set('start_date', (p.start_date && String(p.start_date).trim()) || defaultStart)
+      url.searchParams.set('end_date', (p.end_date && String(p.end_date).trim()) || today)
+      if (p.search_after != null) url.searchParams.set('search_after', String(p.search_after))
+    } else {
+      var textParam = terms.map(function (t) { return String(t).trim() }).filter(Boolean).join('|')
+      if (textParam) url.searchParams.set('text', textParam)
+      if (searchAfter != null) url.searchParams.set('search_after', String(searchAfter))
+    }
+
+    var urlStr = url.toString()
+    rustleLog('info', 'fetch URL', [urlStr])
+
+    return fetch(urlStr, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
     }).then(function (res) {
-      if (!res.ok) return Promise.reject(new Error('HTTP ' + res.status))
+      if (!res.ok) return res.text().then(function (body) {
+        rustleLog('warn', 'search HTTP ' + res.status + ' body', [body])
+        return Promise.reject(new Error('HTTP ' + res.status + ': ' + body))
+      })
       return res.json()
     }).then(function (result) {
-      if (result.type !== 'Success' || !result.data) return { success: false, error: result.error || 'Invalid response' }
-      var messages = result.data.messages || []
+      if (result.type !== 'Success' || !result.data) {
+        rustleLog('warn', 'search invalid response', [result.error || result.type, JSON.stringify(result).slice(0, 200)])
+        return { success: false, error: result.error || 'Invalid response' }
+      }
+      var rawMessages = result.data.messages
+      var messages = Array.isArray(rawMessages) ? rawMessages : (rawMessages ? Object.values(rawMessages) : [])
       var mappedData = messages.map(function (msg) {
         var date = new Date(msg.ts).getTime()
         return {
@@ -73,7 +100,8 @@
           text: msg.text || '',
           nick: msg.username || '',
           flairs: '',
-          matchedTerms: terms
+          matchedTerms: isQueryMode ? [] : terms,
+          searchAfter: msg.searchAfter
         }
       })
       var lastSearchAfter
@@ -90,6 +118,62 @@
         data: mappedData,
         searchAfter: lastSearchAfter,
         hasMore: messages.length > 0 && lastSearchAfter != null
+      }
+    }).catch(function (err) {
+      rustleLog('warn', 'fetchRustlesearch catch', [err && err.message ? err.message : String(err)])
+      return { success: false, error: err && err.message ? err.message : String(err) }
+    })
+  }
+
+  function setRustleLog(logFn) {
+    if (typeof logFn === 'function') rustleLog = logFn
+  }
+
+  function fetchRustlesearchSurrounds(username, datetime, channel) {
+    channel = channel || RUSTLESEARCH_CHANNEL
+    var url = new URL('https://api-v2.rustlesearch.dev/anon/surrounds')
+    url.searchParams.set('username', String(username || ''))
+    url.searchParams.set('channel', String(channel))
+    url.searchParams.set('datetime', String(datetime || ''))
+    return fetch(url.toString(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
+    }).then(function (res) {
+      if (!res.ok) return res.text().then(function (body) {
+        return Promise.reject(new Error('HTTP ' + res.status + ': ' + body))
+      })
+      return res.json()
+    }).then(function (result) {
+      if (result.type !== 'Success' || !result.data) return { success: false, error: result.error || 'Invalid response' }
+      var data = result.data
+      var lines = Array.isArray(data.lines) ? data.lines : []
+      var matched = data.matched || ''
+      var lineRe = /^\[([^\]]+)\]\s+(\S+):\s*(.*)$/
+      var messages = lines.map(function (line, idx) {
+        var m = String(line).match(lineRe)
+        var date = 0
+        var nick = ''
+        var text = ''
+        if (m) {
+          var tsStr = m[1].replace(' ', 'T').replace(' UTC', 'Z')
+          date = new Date(tsStr).getTime()
+          nick = m[2] || ''
+          text = m[3] || ''
+        }
+        return {
+          id: date + '-' + nick + '-' + idx,
+          date: date,
+          nick: nick,
+          text: text,
+          isMatched: String(line) === matched
+        }
+      })
+      return {
+        success: true,
+        data: {
+          messages: messages,
+          matchedUsername: data.username || username || ''
+        }
       }
     }).catch(function (err) {
       return { success: false, error: err && err.message ? err.message : String(err) }
@@ -126,6 +210,9 @@
   function register(context) {
     if (!context) return
     var log = typeof context.log === 'function' ? context.log.bind(context) : function (level, msg) { console.log('[' + level + ']', msg) }
+    setRustleLog(function (level, msg, args) {
+      try { log(level, '[RustleSearch] ' + msg, args || []) } catch (e) {}
+    })
     try {
       if (typeof context.registerChatSource === 'function') {
         context.registerChatSource('dgg', {
@@ -180,7 +267,8 @@
     if (typeof context.registerChatSourceApi === 'function') {
       context.registerChatSourceApi('dgg', {
         fetchMentions: fetchMentions,
-        fetchRustlesearch: fetchRustlesearch
+        fetchRustlesearch: fetchRustlesearch,
+        fetchRustlesearchSurrounds: fetchRustlesearchSurrounds
       })
     }
     if (typeof context.registerSettings === 'function') {
